@@ -1,0 +1,5 @@
+{
+  "name": "Aura Pong",
+  "description": "A 2D local multiplayer Pong game with RNG title mechanics. Roll for auras, use abilities, and battle in a neon arena.",
+  "requestFramePermissions": []
+}
