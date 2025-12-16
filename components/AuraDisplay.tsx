@@ -21,7 +21,7 @@ const AuraDisplay: React.FC<AuraDisplayProps> = ({ aura, isRolling }) => {
   if (isRolling) {
     return (
       <div className="h-64 flex flex-col items-center justify-center animate-pulse">
-        <div className="text-6xl font-display font-bold text-white/20 blur-sm">
+        <div className="text-6xl font-display font-bold text-white/20 blur-sm animate-bounce">
           ???
         </div>
         <div className="mt-4 text-sm text-gray-500 uppercase tracking-widest">
@@ -40,6 +40,7 @@ const AuraDisplay: React.FC<AuraDisplayProps> = ({ aura, isRolling }) => {
   }
 
   const isRare = TIER_ORDER[aura.tier] >= TIER_ORDER[RarityTier.LEGENDARY];
+  const isMythicPlus = TIER_ORDER[aura.tier] >= TIER_ORDER[RarityTier.MYTHIC];
   const isGodly = aura.tier === RarityTier.GODLY;
   const isDogwater = aura.tier === RarityTier.DOGWATER;
 
@@ -50,8 +51,9 @@ const AuraDisplay: React.FC<AuraDisplayProps> = ({ aura, isRolling }) => {
         flex flex-col items-center
         ${getTierColor(aura.tier)}
         transition-all duration-500
-        ${isGodly ? 'shadow-[0_0_100px_rgba(255,255,255,0.8)]' : ''}
+        ${isGodly ? 'shadow-[0_0_100px_rgba(255,255,255,0.8)] border-4' : ''}
         ${isDogwater ? 'opacity-70 rotate-1' : ''}
+        ${isMythicPlus ? 'animate-pulse' : ''}
       `}>
         {/* Background glow for rares */}
         {isRare && (
@@ -65,7 +67,7 @@ const AuraDisplay: React.FC<AuraDisplayProps> = ({ aura, isRolling }) => {
           {aura.tier}
         </h2>
         
-        <h1 className={`text-5xl md:text-7xl font-display font-black tracking-tighter uppercase drop-shadow-2xl ${aura.color} ${isRare ? 'animate-float' : ''}`}>
+        <h1 className={`text-5xl md:text-7xl font-display font-black tracking-tighter uppercase drop-shadow-2xl ${aura.color} ${isRare ? 'animate-float' : ''} ${isGodly ? 'animate-shine bg-clip-text text-transparent bg-gradient-to-r from-white via-yellow-200 to-white' : ''}`}>
           {aura.name}
         </h1>
         

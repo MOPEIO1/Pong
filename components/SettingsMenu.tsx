@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { PlayerControls } from '../types';
-import { X } from 'lucide-react';
+import { X, Trash2 } from 'lucide-react';
 
 interface SettingsMenuProps {
   p1Controls: PlayerControls;
   p2Controls: PlayerControls;
   onSave: (p1: PlayerControls, p2: PlayerControls) => void;
   onClose: () => void;
+  onReset?: () => void;
 }
 
-const SettingsMenu: React.FC<SettingsMenuProps> = ({ p1Controls, p2Controls, onSave, onClose }) => {
+const SettingsMenu: React.FC<SettingsMenuProps> = ({ p1Controls, p2Controls, onSave, onClose, onReset }) => {
   const [p1, setP1] = useState<PlayerControls>({ ...p1Controls });
   const [p2, setP2] = useState<PlayerControls>({ ...p2Controls });
   const [listeningFor, setListeningFor] = useState<{ player: 1 | 2, key: keyof PlayerControls } | null>(null);
@@ -117,19 +118,29 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ p1Controls, p2Controls, onS
           </div>
         </div>
 
-        <div className="p-6 border-t border-white/10 flex justify-end gap-4 bg-black/20">
-          <button 
-            onClick={onClose} 
-            className="px-6 py-3 rounded text-gray-400 hover:text-white font-bold"
-          >
-            CANCEL
-          </button>
-          <button 
-            onClick={() => { onSave(p1, p2); onClose(); }} 
-            className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded font-bold shadow-lg shadow-indigo-500/20"
-          >
-            SAVE CHANGES
-          </button>
+        <div className="p-6 border-t border-white/10 flex justify-between gap-4 bg-black/20">
+           {onReset && (
+               <button 
+                  onClick={onReset}
+                  className="px-6 py-3 rounded text-red-500 hover:text-red-400 hover:bg-red-500/10 font-bold flex items-center gap-2 border border-red-500/30"
+               >
+                   <Trash2 size={16} /> RESET SAVE DATA
+               </button>
+           )}
+           <div className="flex gap-4">
+            <button 
+                onClick={onClose} 
+                className="px-6 py-3 rounded text-gray-400 hover:text-white font-bold"
+            >
+                CANCEL
+            </button>
+            <button 
+                onClick={() => { onSave(p1, p2); onClose(); }} 
+                className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded font-bold shadow-lg shadow-indigo-500/20"
+            >
+                SAVE CHANGES
+            </button>
+           </div>
         </div>
       </div>
     </div>

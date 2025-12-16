@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Aura, PlayerState, PlayerControls, InventoryItem } from '../types';
 import { getRandomAura, AURAS, TIER_COLOR_MAP, ROLLS_PER_GAME, getTierColor } from '../constants';
-import { CheckCircle2, Loader2, ArrowLeft, Clover, Briefcase, ShoppingBag } from 'lucide-react';
+import { CheckCircle2, Loader2, ArrowLeft, Clover, Briefcase, ShoppingBag, ShieldCheck } from 'lucide-react';
 import { playRollTickSound } from '../services/audioService';
 
 interface RollPhaseProps {
@@ -170,6 +170,17 @@ const RollPhase: React.FC<RollPhaseProps> = ({
     const tierColor = aura ? TIER_COLOR_MAP[aura.tier] : 'border-gray-700';
     const rollsLeft = player.rollsRemaining ?? ROLLS_PER_GAME;
     
+    // Determine Guarantee visual
+    let guaranteeText = "";
+    let guaranteeColor = "";
+    if (player.luck >= 10.0) {
+        guaranteeText = "LEGENDARY+ GUARANTEED";
+        guaranteeColor = "text-yellow-400";
+    } else if (player.luck >= 5.0) {
+        guaranteeText = "EPIC+ GUARANTEED";
+        guaranteeColor = "text-purple-400";
+    }
+
     return (
       <div className={`flex-1 flex flex-col items-center justify-center p-8 border-r border-white/10 relative overflow-hidden transition-all duration-300 ${player.isReady ? 'bg-black/40 grayscale-[0.5]' : ''}`}>
         
@@ -194,12 +205,19 @@ const RollPhase: React.FC<RollPhaseProps> = ({
              </div>
           </div>
           
-          {player.luck > 1.0 && (
-             <div className="mb-4 inline-flex items-center gap-2 bg-yellow-500/20 text-yellow-300 px-3 py-1 rounded-full border border-yellow-500/50">
-                <Clover size={16} />
-                <span className="text-sm font-bold uppercase tracking-wider">Luck x{player.luck.toFixed(1)}</span>
-             </div>
-          )}
+          <div className="flex flex-col items-center gap-1 mb-6">
+            {player.luck > 1.0 && (
+                <div className="inline-flex items-center gap-2 bg-yellow-500/20 text-yellow-300 px-3 py-1 rounded-full border border-yellow-500/50 shadow-lg shadow-yellow-500/10">
+                    <Clover size={16} />
+                    <span className="text-sm font-bold uppercase tracking-wider">Luck x{player.luck.toFixed(1)}</span>
+                </div>
+            )}
+            {guaranteeText && !player.isReady && (
+                <div className={`text-[10px] font-bold tracking-widest uppercase flex items-center gap-1 ${guaranteeColor} animate-pulse`}>
+                    <ShieldCheck size={10} /> {guaranteeText}
+                </div>
+            )}
+          </div>
 
           <div className={`
             aspect-square rounded-full border-4 ${tierColor} 

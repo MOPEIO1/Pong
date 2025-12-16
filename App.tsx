@@ -5,7 +5,8 @@ import RollPhase from './components/RollPhase';
 import PongGame from './components/PongGame';
 import SettingsMenu from './components/SettingsMenu';
 import Shop from './components/Shop';
-import { Play, RotateCcw, Settings, ShoppingBag } from 'lucide-react';
+import Dictionary from './components/Dictionary';
+import { Play, RotateCcw, Settings, ShoppingBag, BookOpen, Save } from 'lucide-react';
 import { playWinSound } from './services/audioService';
 
 const INITIAL_PLAYER_STATE = (id: 1 | 2, startingLuck: number = 1.0, coins: number = 0, inventory: InventoryItem[] = []): PlayerState => ({
@@ -17,32 +18,85 @@ const INITIAL_PLAYER_STATE = (id: 1 | 2, startingLuck: number = 1.0, coins: numb
   rollsRemaining: ROLLS_PER_GAME,
   luck: startingLuck,
   coins,
-  inventory
+  inventory,
+  cooldown: 0
 });
 
+const loadGameData = () => {
+  try {
+    const data = localStorage.getItem('aura_pong_save_data');
+    if (data) return JSON.parse(data);
+  } catch (e) { console.error("Failed to load save", e); }
+  return null;
+};
+
 function App() {
+  const saveData = loadGameData();
+
   const [screen, setScreen] = useState<GameScreen>(GameScreen.START);
   const [winner, setWinner] = useState<1 | 2 | null>(null);
+  const [showSaveIndicator, setShowSaveIndicator] = useState(false);
   
-  // Persistent Player Data (Coins/Inventory) across matches
-  const [p1Coins, setP1Coins] = useState(0);
-  const [p2Coins, setP2Coins] = useState(0);
-  const [p1Inventory, setP1Inventory] = useState<InventoryItem[]>([]);
-  const [p2Inventory, setP2Inventory] = useState<InventoryItem[]>([]);
+  // Persistent Player Data - Loaded from save or default
+  const [p1Coins, setP1Coins] = useState(saveData?.p1Coins ?? 0);
+  const [p2Coins, setP2Coins] = useState(saveData?.p2Coins ?? 0);
+  const [p1Inventory, setP1Inventory] = useState<InventoryItem[]>(saveData?.p1Inventory ?? []);
+  const [p2Inventory, setP2Inventory] = useState<InventoryItem[]>(saveData?.p2Inventory ?? []);
 
-  // Shop State (Global)
+  // Discovery System (Collection)
+  const [discoveredAuras, setDiscoveredAuras] = useState<string[]>(() => {
+     // Support legacy discovery save key migration
+     const legacy = localStorage.getItem('celestial_discovery');
+     return saveData?.discoveredAuras ?? (legacy ? JSON.parse(legacy) : []);
+  });
+
+  // Shop State
   const [shopItems, setShopItems] = useState<ShopItem[]>([]);
   const [nextShopRefresh, setNextShopRefresh] = useState<number>(Date.now() + SHOP_REFRESH_MS);
   
-  const [p1, setP1] = useState<PlayerState>(INITIAL_PLAYER_STATE(1, 1.0, 0, []));
-  const [p2, setP2] = useState<PlayerState>(INITIAL_PLAYER_STATE(2, 1.0, 0, []));
+  // Player State initialized with loaded persistence data
+  const [p1, setP1] = useState<PlayerState>(INITIAL_PLAYER_STATE(1, 1.0, p1Coins, p1Inventory));
+  const [p2, setP2] = useState<PlayerState>(INITIAL_PLAYER_STATE(2, 1.0, p2Coins, p2Inventory));
 
-  const [p1Controls, setP1Controls] = useState<PlayerControls>(DEFAULT_CONTROLS_P1);
-  const [p2Controls, setP2Controls] = useState<PlayerControls>(DEFAULT_CONTROLS_P2);
+  const [p1Controls, setP1Controls] = useState<PlayerControls>(saveData?.p1Controls ?? DEFAULT_CONTROLS_P1);
+  const [p2Controls, setP2Controls] = useState<PlayerControls>(saveData?.p2Controls ?? DEFAULT_CONTROLS_P2);
+
+  // --- SAVE SYSTEM ---
+  useEffect(() => {
+    const dataToSave = {
+      p1Coins, p2Coins, 
+      p1Inventory, p2Inventory,
+      discoveredAuras,
+      p1Controls, p2Controls
+    };
+    localStorage.setItem('aura_pong_save_data', JSON.stringify(dataToSave));
+    // Also update legacy key for safety if user downgrades (optional, but good for now)
+    localStorage.setItem('celestial_discovery', JSON.stringify(discoveredAuras));
+
+    // Show indicator briefly
+    if (screen !== GameScreen.BATTLE) {
+        setShowSaveIndicator(true);
+        const t = setTimeout(() => setShowSaveIndicator(false), 2000);
+        return () => clearTimeout(t);
+    }
+  }, [p1Coins, p2Coins, p1Inventory, p2Inventory, discoveredAuras, p1Controls, p2Controls]);
+
+  const handleResetData = () => {
+      if (confirm("Are you sure? This will wipe all coins, items, and discovery progress.")) {
+          localStorage.removeItem('aura_pong_save_data');
+          localStorage.removeItem('celestial_discovery');
+          window.location.reload();
+      }
+  };
+
+  const markDiscovered = (auraId: string) => {
+    if (!discoveredAuras.includes(auraId)) {
+      setDiscoveredAuras(prev => [...prev, auraId]);
+    }
+  };
 
   // --- SHOP LOGIC ---
   useEffect(() => {
-    // Initial Shop Generation
     setShopItems(generateShopItems());
   }, []);
 
@@ -65,23 +119,22 @@ function App() {
     const coins = playerId === 1 ? p1Coins : p2Coins;
     
     if (coins >= item.price) {
-      // Deduct coins
       if (playerId === 1) setP1Coins(prev => prev - item.price);
       else setP2Coins(prev => prev - item.price);
 
-      // Add to inventory
       const newItem: InventoryItem = { id: `inv-${Date.now()}`, aura: item.aura };
       if (playerId === 1) setP1Inventory(prev => [...prev, newItem]);
       else setP2Inventory(prev => [...prev, newItem]);
 
-      // Mark as sold
+      // Buying also discovers it
+      markDiscovered(item.aura.id);
+
       const newShop = [...shopItems];
       newShop[itemIndex] = { ...item, sold: true, soldTo: playerId };
       setShopItems(newShop);
     }
   };
 
-  // Sync Global Persisted Data to Player State when screen changes or buys happen
   useEffect(() => {
     setP1(prev => ({ ...prev, coins: p1Coins, inventory: p1Inventory }));
     setP2(prev => ({ ...prev, coins: p2Coins, inventory: p2Inventory }));
@@ -89,9 +142,13 @@ function App() {
 
 
   const handleUpdatePlayer = (id: 1 | 2, updates: Partial<PlayerState>) => {
+    // Check if we are updating the aura, if so, mark as discovered
+    if (updates.aura) {
+        markDiscovered(updates.aura.id);
+    }
+
     if (id === 1) {
         setP1(prev => ({ ...prev, ...updates }));
-        // If inventory changed in updates (e.g., consumed item), sync back to global state
         if (updates.inventory) setP1Inventory(updates.inventory);
     } else {
         setP2(prev => ({ ...prev, ...updates }));
@@ -100,9 +157,14 @@ function App() {
   };
 
   const handleStartGame = () => {
-    // If somehow no aura (ran out of rolls and didn't lock?), auto assign last rolled or random with their luck
-    if (!p1.aura) handleUpdatePlayer(1, { aura: getRandomAura(p1.luck) });
-    if (!p2.aura) handleUpdatePlayer(2, { aura: getRandomAura(p2.luck) });
+    if (!p1.aura) {
+        const a = getRandomAura(p1.luck);
+        handleUpdatePlayer(1, { aura: a });
+    }
+    if (!p2.aura) {
+        const a = getRandomAura(p2.luck);
+        handleUpdatePlayer(2, { aura: a });
+    }
     setScreen(GameScreen.BATTLE);
   };
 
@@ -110,14 +172,11 @@ function App() {
     setWinner(winnerId);
     setScreen(GameScreen.WIN);
     playWinSound();
-
-    // AWARD COINS
     setP1Coins(prev => prev + COINS_PER_MATCH);
     setP2Coins(prev => prev + COINS_PER_MATCH);
   };
 
   const handleRematch = () => {
-    // Calculate new luck: Winner resets to 1.0, Loser gets +1.0
     let p1Luck = 1.0;
     let p2Luck = 1.0;
 
@@ -136,9 +195,13 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0f172a] text-white flex flex-col overflow-hidden font-inter">
+    <div className="min-h-screen bg-[#0f172a] text-white flex flex-col overflow-hidden font-inter relative">
       
-      {/* Settings Modal */}
+      {/* Auto-Save Indicator */}
+      <div className={`fixed bottom-4 right-4 z-[100] flex items-center gap-2 text-xs font-mono text-gray-500 bg-black/50 px-3 py-1 rounded-full border border-white/5 transition-opacity duration-500 ${showSaveIndicator ? 'opacity-100' : 'opacity-0'}`}>
+          <Save size={12} /> Auto-Saved
+      </div>
+
       {screen === GameScreen.SETTINGS && (
         <SettingsMenu 
           p1Controls={p1Controls} 
@@ -148,10 +211,10 @@ function App() {
             setP2Controls(newP2);
           }}
           onClose={() => setScreen(GameScreen.START)}
+          onReset={handleResetData}
         />
       )}
 
-      {/* Shop Modal */}
       {screen === GameScreen.SHOP && (
         <Shop 
           items={shopItems}
@@ -160,6 +223,13 @@ function App() {
           nextRefresh={nextShopRefresh}
           onBuy={handleBuyItem}
           onClose={() => setScreen(GameScreen.START)}
+        />
+      )}
+
+      {screen === GameScreen.DICTIONARY && (
+        <Dictionary 
+            onClose={() => setScreen(GameScreen.START)} 
+            discoveredIds={discoveredAuras}
         />
       )}
 
@@ -183,7 +253,6 @@ function App() {
                  onClick={() => setScreen(GameScreen.ROLL)}
                  className="group relative px-12 py-4 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/30 transition-all duration-300 hover:scale-105 active:scale-95 hover:shadow-[0_0_30px_rgba(255,255,255,0.1)]"
                >
-                 {/* Animated gradient border or glow */}
                  <div className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-r from-blue-500/20 to-purple-500/20 blur-md -z-10" />
                  
                  <span className="flex items-center gap-3 font-display font-bold text-xl tracking-[0.2em] text-white">
@@ -197,6 +266,12 @@ function App() {
                     className="flex items-center justify-center gap-2 px-6 py-2 bg-yellow-500/10 border border-yellow-500/30 text-yellow-200 hover:bg-yellow-500/20 transition-all rounded-full uppercase tracking-widest text-sm"
                   >
                     <ShoppingBag size={16} /> Item Shop
+                  </button>
+                  <button 
+                    onClick={() => setScreen(GameScreen.DICTIONARY)}
+                    className="flex items-center justify-center gap-2 px-6 py-2 bg-blue-500/10 border border-blue-500/30 text-blue-200 hover:bg-blue-500/20 transition-all rounded-full uppercase tracking-widest text-sm"
+                  >
+                    <BookOpen size={16} /> Dictionary
                   </button>
                   <button 
                     onClick={() => setScreen(GameScreen.SETTINGS)}

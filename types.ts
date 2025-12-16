@@ -10,18 +10,54 @@ export enum RarityTier {
 }
 
 export type AbilityType = 
-  | 'SPEED_BOOST' 
-  | 'CURVE_SHOT' 
-  | 'GHOST_BALL' 
-  | 'ENLARGE_PADDLE' 
-  | 'SHRINK_PADDLE'
-  | 'WOBBLE_SHOT'
-  | 'ZIGZAG_SHOT'
-  | 'STOP_AND_GO';
+  | 'SPEED' 
+  | 'CURVE' 
+  | 'GHOST' 
+  | 'SIZE' 
+  | 'PHYSICS' 
+  | 'TIME' 
+  | 'CONTROL'
+  | 'TELEPORT'
+  | 'LUCK'
+  | 'SPECIAL'
+  | 'DOGWATER';
+
+export interface AbilityEffects {
+  // Ball Modifiers (Applied by Last Hitter)
+  speedMultiplier?: number; // 1.5 = +50% speed
+  curveStrength?: number; // 0.1 to 1.0 (Y-axis force)
+  invisible?: boolean; // Opacity 0
+  ghost?: boolean; // Flicker / Opacity 0.5
+  chaosBounce?: boolean; // Randomize reflection angles
+  teleport?: 'RANDOM' | 'FORWARD' | 'EDGE' | 'path_correction'; // Jumps
+  gravity?: number; // Constant Y-force (arcs)
+  visualTrail?: 'FADE' | 'ECHO' | 'TWIN' | 'FIRE'; // Cosmetic
+  
+  // Paddle Modifiers (Applied by Owner)
+  paddleScale?: number; // 1.5 = Bigger, 0.5 = Smaller
+  paddleSpeed?: number; // 1.2 = Faster Movement, 0.5 = Slow (Lag)
+  enemyPaddleScale?: number; // Affects opponent
+  enemyPaddleSpeed?: number; // 0.0 = Freeze opponent
+  freezeDuration?: number; // ms to stop ball on hit
+  stickyDuration?: number; // ms to hold ball on paddle
+  magnetStrength?: number; // Pulls ball towards paddle center
+  autoAlign?: number; // 0.0 to 1.0 strength of auto-movement
+  
+  // Control Flags
+  reverseInput?: boolean; // Self Debuff (Dogwater)
+  reverseEnemyInput?: boolean; // Attack (Reverse Opponent)
+  
+  // Global / Meta
+  timeWarpFactor?: number; // Global speed scale (e.g. 0.5 for slow mo)
+  phaseWall?: boolean; // Wrap around screen or bounce weirdly
+  luckBoost?: number; // Passive luck increase
+  scoreMultiplier?: number; // 2x points
+  duplicateBall?: boolean; // Spawns a temp fake ball? (Visual only for now)
+}
 
 export interface AuraStats {
-  paddleHeightScale: number; // 1.0 is base
-  paddleSpeedScale: number; // 1.0 is base
+  paddleHeightScale: number; // Removed passive buffs, kept for type compatibility but set to 1.0
+  paddleSpeedScale: number; 
 }
 
 export interface AuraAbility {
@@ -30,6 +66,7 @@ export interface AuraAbility {
   duration: number; // ms
   cooldown: number; // ms
   description: string;
+  effects: AbilityEffects;
 }
 
 export interface Aura {
@@ -76,6 +113,7 @@ export interface PlayerState {
   luck: number;
   coins: number;
   inventory: InventoryItem[];
+  cooldown: number; // timestamp when ability is ready
 }
 
 export enum GameScreen {
@@ -84,5 +122,6 @@ export enum GameScreen {
   ROLL = 'ROLL',
   BATTLE = 'BATTLE',
   WIN = 'WIN',
-  SHOP = 'SHOP'
+  SHOP = 'SHOP',
+  DICTIONARY = 'DICTIONARY'
 }
